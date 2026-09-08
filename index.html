@@ -528,6 +528,39 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// --- Almacenamiento local del navegador (localStorage) ---
+// Sustituye a window.storage (que solo funciona dentro de Claude.ai) para que
+// la app guarde los datos de verdad al usarla como página normal.
+if (!window.storage) {
+  const PREFIX = 'pedidoyventas:';
+  window.storage = {
+    async get(key) {
+      const raw = localStorage.getItem(PREFIX + key);
+      if (raw === null) return null;
+      return { key, value: raw, shared: false };
+    },
+    async set(key, value) {
+      localStorage.setItem(PREFIX + key, value);
+      return { key, value, shared: false };
+    },
+    async delete(key) {
+      localStorage.removeItem(PREFIX + key);
+      return { key, deleted: true, shared: false };
+    },
+    async list(prefix) {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(PREFIX)) {
+          const short = k.slice(PREFIX.length);
+          if (!prefix || short.startsWith(prefix)) keys.push(short);
+        }
+      }
+      return { keys };
+    }
+  };
+}
+
 // Kg, Caja y Box se venden/piden a granel -> permite decimales en ventas
 const GRANEL_UNITS = ["Kg","Caja","Box"];
 
