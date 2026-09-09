@@ -528,39 +528,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// --- Almacenamiento local del navegador (localStorage) ---
-// Sustituye a window.storage (que solo funciona dentro de Claude.ai) para que
-// la app guarde los datos de verdad al usarla como página normal.
-if (!window.storage) {
-  const PREFIX = 'pedidoyventas:';
-  window.storage = {
-    async get(key) {
-      const raw = localStorage.getItem(PREFIX + key);
-      if (raw === null) return null;
-      return { key, value: raw, shared: false };
-    },
-    async set(key, value) {
-      localStorage.setItem(PREFIX + key, value);
-      return { key, value, shared: false };
-    },
-    async delete(key) {
-      localStorage.removeItem(PREFIX + key);
-      return { key, deleted: true, shared: false };
-    },
-    async list(prefix) {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(PREFIX)) {
-          const short = k.slice(PREFIX.length);
-          if (!prefix || short.startsWith(prefix)) keys.push(short);
-        }
-      }
-      return { keys };
-    }
-  };
-}
-
 // Kg, Caja y Box se venden/piden a granel -> permite decimales en ventas
 const GRANEL_UNITS = ["Kg","Caja","Box"];
 
@@ -767,6 +734,59 @@ const DELIVERY_MAP = {
   4: {arrives:1, days:"lunes", cover:1, coverDows:[1]},
   5: {arrives:2, days:"martes", cover:1, coverDows:[2]}
 };
+
+// window.storage solo existe dentro de Claude.ai. Fuera de ahí (GitHub Pages, etc.)
+// no existe, así que lo reemplazamos por una versión que usa localStorage del navegador,
+// que sí persiste los datos en el celular.
+if(!window.storage){
+  window.storage = {
+    async get(key, shared){
+      const v = localStorage.getItem(key);
+      return v !== null ? {key, value:v, shared: !!shared} : null;
+    },
+    async set(key, value, shared){
+      localStorage.setItem(key, value);
+      return {key, value, shared: !!shared};
+    },
+    async delete(key, shared){
+      const existed = localStorage.getItem(key) !== null;
+      localStorage.removeItem(key);
+      return {key, deleted: existed, shared: !!shared};
+    },
+    async list(prefix, shared){
+      const keys = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(!prefix || k.startsWith(prefix)) keys.push(k);
+      }
+      return {keys, prefix, shared: !!shared};
+    }
+  };
+}
+
+// Historial cargado desde WhatsApp. Solo se escribe si esa fecha todavía no
+// tiene datos guardados, para no pisar nada que ya hayas cargado a mano.
+(function seedHistory(){
+  const seeds = {
+    'pedido:2026-09-03': {
+      "62363":1,"63758":1,"10461":1,
+      "10407":2,"63775":1,"63774":1,"58102":2,"31330":1,"35412":1,"31118":1,
+      "57876":1,"63778":1,"31374":1,"31376":1,"10333":2,"63782":1,"63783":1,
+      "10601":2,"15361":6,"10641":2,"10639":1,"10493":1,"53505":2,"10563":1,
+      "63843":1,"51126":1,"63763":1,
+      "58072":1,"10353":1,"10355":1,"49104":1,"10365":1,"10359":1,"49107":1,
+      "10373":20,"19169":1,"49102":4,"61483":8,"10433":2,"10439":1,"10437":1,
+      "10487":1,"10649":1,"10393":50,"10349":1,"10455":1,"37647":3,"19514":1,
+      "10453":1,"17525":1,"63768":1,
+      "58117":1,"58116":1,"52295":1,"52294":1
+    }
+  };
+  for(const [key, data] of Object.entries(seeds)){
+    if(localStorage.getItem(key) === null){
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  }
+})();
 
 let currentTab = 'pedido';
 const state = { pedido:{}, venta:{}, stock:{} };
